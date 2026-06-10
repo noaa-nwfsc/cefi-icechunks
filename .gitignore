@@ -1,0 +1,5 @@
+*-creds.json
+*_icechunk_repo
+*_json
+.ipynb_checkpoints
+Untitled*.ipynb
