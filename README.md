@@ -13,11 +13,11 @@ store = ic.Repository.open(
     authorize_virtual_chunk_access={prefix: None for prefix in containers},
 ).readonly_session("main").store
 
-ds = xr.open_zarr(store, consolidated=False, group="monthly/main")
+ds = xr.open_zarr(store, consolidated=False, group="monthly/raw/main")
 ds
 ```
 
-This example is intended for teaching cloud-native access patterns for archival NetCDF data using:
+This used:
 
 - [Icechunk](https://icechunk.io/)
 - [VirtualiZarr](https://virtualizarr.readthedocs.io/)
@@ -25,7 +25,7 @@ This example is intended for teaching cloud-native access patterns for archival 
 - Public object storage
 - NOAA CEFI regional MOM6 output
 
-GitHub repo: [https://github.com/noaa-nwfsc/cefi-icechunks](https://github.com/noaa-nwfsc/cefi-icechunks)<br>
+GitHub repo (private): [https://github.com/noaa-nwfsc/cefi-icechunks](https://github.com/noaa-nwfsc/cefi-icechunks)<br>
 Vizualization: [GridLook Viz](https://eeholmes.github.io/gridlook/#https://data.source.coop/eeholmes/cefi/nepacific-icechunk::catalog=static/catalog.json::projectionCenterLat=0::projectionCenterLon=0::varname=monthly/main/chlos::dimIndices_time=0::camerastate=JYw7EsIwDETv4tr2aCVZH67CpKCgSJPwCRXD3TFDt7O7773LbX-ux7pv5XRu2Ud4JiFcdCSjNunhSFYTGFEgrYI7x4yuHCEIWWq5vy7H9bH9PTR3xdRkwmASE2rUkXAWNZ86JRX9lYOHOKcZRwqzVuru4cPmJzDSfPl8AQ::invertcolormap=false::colormap=turbo)
 
 The CEFI portal provides access to information about past and future conditions for U.S. coastal regions, including regional ocean model output intended for analysis, visualization, and management-relevant applications.
@@ -72,13 +72,24 @@ The source archive contains variables with different file layouts. Some variable
 Group names:
 
 ```text
-/daily
-    /main
-    /aux
-/monthly
-    /main
-    /aux
-    /aux2
+daily
+    daily/raw
+        daily/raw/aux
+        daily/raw/main
+    daily/regrid
+        daily/regrid/aux
+        daily/regrid/main
+monthly
+    monthly/raw
+        monthly/raw/aux1
+        monthly/raw/main
+        monthly/raw/ice_static
+        monthly/raw/aux2
+        monthly/raw/ocean_static
+    monthly/regrid
+        monthly/regrid/aux
+        monthly/regrid/aux2
+        monthly/regrid/main
 ```
 
 ## Open the dataset in Python
@@ -90,7 +101,7 @@ import icechunk as ic
 import xarray as xr
 
 url = "https://data.source.coop/eeholmes/cefi/nepacific-icechunk"
-group = "monthly/main" # use "/" if no groups
+group_name = "monthly/raw/main" # use "/" if no groups
 
 storage = ic.http_storage(url)
 containers = ic.Repository.open(storage).config.virtual_chunk_containers or []
@@ -99,7 +110,7 @@ store = ic.Repository.open(
     authorize_virtual_chunk_access={prefix: None for prefix in containers},
 ).readonly_session("main").store
 
-ds = xr.open_zarr(store, consolidated=False, group="monthly/main")
+ds = xr.open_zarr(store, consolidated=False, group=group_name)
 ds
 ```
 
