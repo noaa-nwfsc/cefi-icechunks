@@ -22,7 +22,7 @@ This used:
 - [Icechunk](https://icechunk.io/)
 - [VirtualiZarr](https://virtualizarr.readthedocs.io/)
 - [Xarray](https://docs.xarray.dev/)
-- Public object storage
+- [CEFI public object storage](https://noaa-oar-cefi-regional-mom6-pds.s3.amazonaws.com/index.html#northeast_pacific/full_domain/hindcast/)
 - NOAA CEFI regional MOM6 output
 
 GitHub repo (private): [https://github.com/noaa-nwfsc/cefi-icechunks](https://github.com/noaa-nwfsc/cefi-icechunks)<br>
