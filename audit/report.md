@@ -1,8 +1,9 @@
 # CEFI regional MOM6 source-file audit
 
 Issue: noaa-nwfsc/cefi-icechunks#5. Audit run 2026-09-23 against
-`s3://noaa-oar-cefi-regional-mom6-pds` (anonymous). This report diagnoses only; it
-proposes no fixes.
+`s3://noaa-oar-cefi-regional-mom6-pds` (anonymous). This report diagnoses only. A
+draft standard for rebuilt files and an estimate of the rebuild effort are in
+[`rebuild.md`](rebuild.md).
 
 **Goal it serves.** One virtual Icechunk group per region / experiment / frequency /
 grid holding every variable (for example `nep/hindcast/regrid`). The question for each
@@ -24,6 +25,10 @@ files from being concatenated.
   - NWA monthly regrid mixes three longitude grids (P9).
   - PCI monthly raw has empty and broken files (P10).
   - Forecast `lead` and `member` coordinates are inconsistent (P12, P13).
+- **There is no chunking standard.** The main variables use 39 different chunk shapes.
+  1,687 files use netCDF-C's automatic ~4 MiB chunking, meaning no chunking was
+  specified. Chunks range from under 1 MB (PCI raw) to 160 MB (the NEP and NWA 3-D
+  variables), and many Pacific Islands chunks are only 4–150 KB compressed (P17).
 - **Kerchunk JSON content is sound; the problems are around it.** Where a JSON exists
   and points at the right file, its byte ranges matched VirtualiZarr's manifest in every
   sampled file but two. However:
@@ -251,7 +256,60 @@ Kerchunk inlines as base64 were not compared.
 
 - **Repro:** `01_kerchunk_json_problems.py`.
 
+### P17. Chunk sizes and shapes: no standard, and poorly suited to cloud reads
+A virtual Icechunk store keeps the source files' chunks, so every read costs whatever
+the NetCDF chunking dictates. This can't be fixed at Icechunk build time; only
+rewriting the files can.
+
+- **No standard.** The main variables use 39 distinct chunk shapes: 17 for 3-D
+  (time, y, x) and 22 for 4-D. They differ between regions, releases, raw and regrid,
+  and variables:
+
+  | Chunk shape | Files | Uncompressed |
+  |---|---:|---:|
+  | `[100, 200, 200]` | 3,542 | 16 MB |
+  | `[100, 10, 200, 200]` | 2,594 | 160 MB |
+  | `[10, 12, 200, 200]` | 1,578 | 19 MB |
+  | `[2, 30, 211, 194]` | 1,098 | 10 MB |
+  | `[4, 4, 282, 258]` | 480 | 4.7 MB |
+  | `[20, 100, 100]` | 364 | 0.8 MB |
+  | `[10, 10, 50, 50]` | 74 | 1.0 MB |
+  | 13 netCDF-C default shapes (`[38, 255, 107]`, `[22, 225, 206]`, `[35, 267, 112]`, ...) | 1,687 | 4.1–4.2 MB |
+  | 19 other shapes | 1,852 | 3.5–80 MB |
+  | **39 shapes** | **13,269** | |
+
+- **Many files were written without a chunking choice.** 1,687 files have odd
+  shapes like `[38, 255, 107]`, `[22, 225, 206]` or `[213, 109, 45]`, all 4.13–4.19 MB.
+  That is netCDF-C's default chunking, which targets 4 MiB (4,194,304 bytes) and
+  derives the shape from the dimension sizes. It accounts for nearly every 2-D monthly
+  raw variable in NEP and NWA r20230520, and all NEP daily 2-D files.
+- **Too small (Pacific Islands raw).** Measured on actual chunk references:
+
+  | Files | Chunk | Uncompressed | Compressed median (10–90%) | Chunks per file |
+  |---|---|---:|---:|---:|
+  | PCI monthly raw 2-D | `[20, 100, 100]` | 0.8 MB | 686 KB (158–715 KB) | 960 |
+  | PCI monthly raw 4-D (`rsdo`) | `[10, 10, 50, 50]` | 1.0 MB | 501 KB (4–865 KB) | 52,800 |
+  | PCI daily raw 2-D | `[20, 100, 100]` | 0.8 MB | 597 KB (145–651 KB) | 28,944 |
+  | PCI monthly regrid 2-D | `[100, 200, 200]` | 16 MB | 8.1 MB (3.6–10.8 MB) | 48 |
+
+  One map of a 4-D PCI variable through time takes tens of thousands of requests, many
+  for a few KB (land or deep levels). The same region's regrid files are chunked 20×
+  larger.
+- **Too large (NEP and NWA 3-D).** `[100, 10, 200, 200]` is 160 MB uncompressed; NEP
+  `thetao` chunks are 27 MB compressed at the median and up to 94 MB. Reading one day at
+  one level pulls the whole chunk.
+- **Chunks that span the wrong things.** Time chunks of 100 don't align with years or
+  months (P1). Spatial tiles of 200 or 50 don't divide the grids (816 × 342, 845 × 775,
+  539 × 725), so every file has ragged edge chunks. And `time_bnds`/`average_DT` chunks
+  are longer than the axis (P14).
+- **Evidence:** `chunk-shapes-within-release` and `chunk-size-outside-1-100MB` rows in
+  `findings.csv` (category `chunking`).
+
 ### Smaller inconsistencies (don't block a build)
+- **Dimension names:** in NEP monthly raw r20250912, the ocean tracer grid is named
+  `jh/ih` in 414 variables and `yh/xh` in 16 (for example `S_adx_2d_rotate`), so those
+  can't share a group without renaming. r20260701 uses `jh/ih` throughout. The sea-ice
+  model's own `yT/xT` and `yB/xB` names are legitimate and not counted.
 - **Time units:** some files write `days since 1993-01-01` and others
   `... 00:00:00`, which are equivalent. NWA r20230520 mixes reference years 1980 and
   1993.

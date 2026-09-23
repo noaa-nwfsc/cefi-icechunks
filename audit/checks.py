@@ -8,6 +8,7 @@ time_axes.csv (per group x variable axis signature, the merge-blocker table).
 Each finding has a `category`:
     single-group  stops the variable from sharing one Icechunk group with the rest
     concat        stops a variable's files from being concatenated along time/init
+    chunking      chunk sizes or shapes poorly suited to cloud reads, or inconsistent
     kerchunk      a problem in CEFI's Kerchunk JSONs
     file          a file that is unreadable, misnamed, or in an unexpected format
     hygiene       inconsistent metadata that won't block a build but should be fixed
@@ -379,9 +380,49 @@ def check_chunk_sizes(prim: pd.DataFrame, files: pd.DataFrame) -> None:
         for label, bad in (("over 100 MB", g[g.mb > 100]), ("under 1 MB", g[g.mb < 1])):
             if len(bad):
                 ex = bad.iloc[0]
-                add("hygiene", "chunk-size-outside-1-100MB", grp, None, [],
+                add("chunking", "chunk-size-outside-1-100MB", grp, None, [],
                     f"{len(bad)} of {len(g)} variables have chunks {label} uncompressed, "
                     f"e.g. {ex['var']} chunks {ex.chunks} = {ex.mb:.1f} MB", n_files=len(bad))
+
+
+def check_chunk_shapes(prim: pd.DataFrame, files: pd.DataFrame) -> None:
+    """Distinct chunk shapes among same-rank variables of one release, and netCDF-C defaults.
+
+    netCDF-C's default chunking targets 4 MiB and derives the shape from the dimension
+    sizes, so shapes like [38, 255, 107] at 4.1-4.19 MB mean no chunking was specified.
+    """
+    p = prim[prim.chunks.notna()].merge(files[["key", "group"]], on="key")
+    p = p.assign(
+        rank=p["shape"].map(lambda s: len(json.loads(s))),
+        bytes=[np.prod(json.loads(c)) * np.dtype(d).itemsize for c, d in zip(p.chunks, p["dtype"])],
+    )
+    for (grp, rank), g in p.drop_duplicates(["group", "var"]).groupby(["group", "rank"]):
+        shapes = g.chunks.value_counts()
+        default = g[(g["bytes"] > 4.0e6) & (g["bytes"] <= 4194304)]
+        if len(shapes) > 1 or len(default):
+            add("chunking", "chunk-shapes-within-release", grp, None, [],
+                f"{rank}-D variables: {len(shapes)} chunk shapes ("
+                + "; ".join(f"{k} x{n}" for k, n in shapes.head(5).items())
+                + (" ..." if len(shapes) > 5 else "") + ")"
+                + (f"; {len(default)} of {len(g)} look like netCDF-C default chunking (~4 MiB)" if len(default) else ""),
+                n_files=len(g))
+
+
+def check_dim_names(prim: pd.DataFrame, files: pd.DataFrame) -> None:
+    """The ocean tracer grid named both jh/ih and yh/xh in one release.
+
+    yT/xT, yB/xB (sea-ice model) and the q-point dims are legitimately separate names,
+    so only the two spellings of the ocean h-point grid are compared.
+    """
+    p = prim[prim["ndim"] >= 3].merge(files[["key", "group"]], on="key").drop_duplicates(["group", "var"])
+    p = p.assign(dims_=p.dims.map(json.loads))
+    for grp, g in p.groupby("group"):
+        ji = g[g.dims_.map(lambda d: "jh" in d or "ih" in d)]
+        yx = g[g.dims_.map(lambda d: "yh" in d or "xh" in d)]
+        if len(ji) and len(yx):
+            add("single-group", "dimension-names-differ", grp, None, [],
+                f"ocean tracer grid named jh/ih in {len(ji)} variables and yh/xh in {len(yx)} "
+                f"(e.g. {ji['var'].iloc[0]} vs {yx['var'].iloc[0]})", n_files=len(ji) + len(yx))
 
 
 def check_chunk_exceeds_shape(vars_: pd.DataFrame, files: pd.DataFrame) -> None:
@@ -511,6 +552,8 @@ def main() -> None:
     check_series(prim, files)
     check_group_codecs(prim, files)
     check_chunk_sizes(prim, files)
+    check_chunk_shapes(prim, files)
+    check_dim_names(prim, files)
     check_chunk_exceeds_shape(vars_, files)
     check_coords(vars_, files)
     check_bundled(vars_, files)
