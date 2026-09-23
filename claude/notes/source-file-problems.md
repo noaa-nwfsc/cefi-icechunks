@@ -19,6 +19,10 @@ listed in a separate final section of the report (PCI-1 to PCI-5), not in the ma
 P1–P9 list, so the report doesn't imply draft products should meet the standard yet.
 Keep that framing in anything written for CEFI.
 
+`audit/report-cefi.md` is the user's trimmed, CEFI-facing version. They merged in the
+rebuild summary and dropped the PCI section and repo links. Prefer editing that file for
+anything going to CEFI; `report.md` is the full internal record.
+
 ## Headline (newest releases)
 
 - Time axes are clean: one axis per NEP/NWA hindcast product.
