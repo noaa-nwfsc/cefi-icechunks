@@ -1,17 +1,18 @@
 # Rebuilding the CEFI NetCDFs: draft standard and effort
 
-Companion to [`report.md`](report.md), which lists the problems (P1–P17). This document
-covers what a rebuild would fix and what it can't, a **draft** standard for the rebuilt
+Companion to [`report.md`](report.md), which lists the problems (P1–P11) in the newest
+release of each product. This document covers what a rebuild would fix and what it
+can't, a **draft** standard for the rebuilt
 files, and what the work would take. The standard is a starting point for discussion
 with CEFI, not a settled spec. The numbers come from the audit and from timings on real
 files, stated below.
 
 ## Summary
 
-- **Machine time is small.** Rewriting the newest release of every series (18.9 TB
+- **Machine time is small.** Rewriting the newest release of every product (18.9 TB
   compressed, about 40 TB uncompressed) is roughly **250–1,000 CPU core-hours**. On a
   fleet of about 25 VMs that is **under a day of wall-clock time**, including
-  validation, for about **$30–100 of compute**.
+  validation, for about **$40–100 of compute**.
 - **The real cost is people and agreement.** Agreeing a standard with CEFI, writing and
   testing the pipeline, and piloting it is several weeks. Allow **about 3–4 weeks of
   engineering once the standard is agreed**, plus CEFI's own calendar for problems that
@@ -27,17 +28,16 @@ newest published files. "CEFI" means the data needed isn't in the bucket.
 
 | Problem | Fix | Who |
 |---|---|---|
-| P17 chunk sizes and shapes; P1 per-year time chunks; P14 oversized chunks; P15 slow indexing | Rewrite with standard chunks | Reprocess |
-| P6 bundled `volcello`, typo'd `vollcello` | Drop bundled copies; keep one `volcello` (static or its own file) | Reprocess |
-| P8 netCDF3 static files, masked `geolon`/`geolat` | Rewrite as netCDF4; take coordinates from the data files | Reprocess |
-| P12 decadal `lead` as dates; P13 member order, fill values, dimension order | Re-encode `lead` as months since init; sort `member`; one fill value; one dimension order | Reprocess |
-| Dimension names (`jh/ih` vs `yh/xh`), time units spelling, file naming | Normalize metadata and names | Reprocess |
-| P2–P5, P7 (NEP r20250912 / r20251001 time axes, zeroed `so`) | Use the newest release (r20260701), which doesn't have them; retire r20251001 | Reprocess / CEFI decision |
-| P9 NWA regrid variables on the 0.0801° grid | Re-regrid from raw onto the common grid (needs CEFI's regridding weights and method) | CEFI (or reprocess, with their weights) |
-| P10 PCI `T_adx_2d`, `ffedet_btm`, `speed` empty or broken | Regenerate from model output | **CEFI** |
-| P13 member 6 missing from seasonal forecast init 202510 | Regenerate | **CEFI** |
-| P11 `T_adx` SSP585 missing 2045 | Regenerate | **CEFI** |
-| P16 Kerchunk JSONs | Regenerate from rebuilt files, or retire the JSON workflow | CEFI decision |
+| P1 chunk sizes and shapes (including slow indexing); P2 per-year time chunks; P3 oversized chunks | Rewrite with standard chunks | Reprocess |
+| P4 bundled `volcello`, typo'd `vollcello` | Drop bundled copies; keep one `volcello` (static or its own file) | Reprocess |
+| P5 netCDF3 static files, masked `geolon`/`geolat` | Rewrite as netCDF4; take coordinates from the data files | Reprocess |
+| P9 decadal `lead` as dates; P10 fill values, dimension order, bundled anomalies | Re-encode `lead` as months since init; one fill value; one dimension order | Reprocess |
+| File naming, time units spelling | Normalize metadata and names | Reprocess |
+| P6 NWA regrid variables on the 0.0801° grid | Re-regrid from raw onto the common grid (needs CEFI's regridding weights and method) | CEFI (or reprocess, with their weights) |
+| P7 PCI `T_adx_2d`, `ffedet_btm`, `speed` empty or broken | Regenerate from model output | **CEFI** |
+| P10 member 6 missing from seasonal forecast init 202510 | Regenerate | **CEFI** |
+| P8 `T_adx` SSP585 missing 2045 | Regenerate | **CEFI** |
+| P11 Kerchunk JSONs | Regenerate from rebuilt files, or retire the JSON workflow | CEFI decision |
 
 ## Draft standard (v0, for discussion)
 
@@ -51,9 +51,9 @@ newest published files. "CEFI" means the data needed isn't in the bucket.
    1.6 MB (PCI) or 2.6 MB (NWA) as float32, so splitting the domain into tiles only
    creates ragged edge chunks and more requests.
 4. **The time chunk divides every file's length exactly**, so files can be concatenated
-   and appended on a regular chunk grid (P1). A single full-period file may end in a
+   and appended on a regular chunk grid (P2). A single full-period file may end in a
    partial chunk only if it will never be extended.
-5. **Chunks never exceed the array length** (P14), and bounds variables (`time_bnds`)
+5. **Chunks never exceed the array length** (P3), and bounds variables (`time_bnds`)
    are chunked like their axis.
 
 ### Proposed chunk shapes
@@ -74,7 +74,7 @@ smaller and nearly identical).
 Why these:
 - **Monthly 2-D:** 12 divides 396 (33 years) and every whole-year append.
 - **Daily:** the time chunk must be **1**, because 1 is the only chunk that divides
-  both 365 and 366 (P1). That makes daily 2-D chunks small (1–2.6 MB) but regular.
+  both 365 and 366 (P2). That makes daily 2-D chunks small (1–2.6 MB) but regular.
   The alternative is full-period daily files with a larger time chunk, which can't be
   extended without rewriting them. That's a decision for CEFI (see open questions).
 - **3-D:** 13 divides 52 levels and 19 divides 76.
@@ -91,12 +91,12 @@ that serves neither well.
 - **Codec:** zlib level 2 with shuffle, as now. In a timing test, level 4 made files
   only 2% smaller for about 10% more CPU. zstd would need plugins many readers lack.
 - **dtype and fill value:** float32 and one `_FillValue` convention per variable across
-  all files (P13 found NaN in some files, 9.97e36 in others).
+  all files (P10 found NaN in some files, 9.97e36 in others).
 - **Time:** `days since 1993-01-01 00:00:00`, one calendar (`gregorian`/`standard`),
   mid-period stamps, and `time_bnds` present and chunked like `time`.
 - **Coordinates:** one set per region and grid, identical in every file. Unmasked
-  `geolon`/`geolat`. One longitude convention for regrid (P9). One dimension naming
-  (`yh/xh` or `jh/ih`, not both).
+  `geolon`/`geolat`. One longitude grid and convention for regrid (P6). One dimension
+  naming per grid.
 - **Content:** one data variable per file. No bundled `volcello` or other cell
   measures; those live once, in the static file.
 - **Forecasts:** dimension order `(member, lead, y, x)` everywhere. `lead` as integers
@@ -119,10 +119,8 @@ about an hour for the whole bucket; it parallelizes trivially.
    period (fewer files, rewritten whenever the period is extended)?
 2. **Daily 2-D chunks:** accept 1–2.6 MB chunks (time chunk 1), or use full-period
    files with a larger time chunk?
-3. **Which releases to rebuild:** only the newest in each series (18.9 TB), or all
-   (37 TB)? Retire r20251001, which is a copy of r20250912?
-4. **Longitude convention** for regrid (−180..180 or 0..360).
-5. **Kerchunk JSONs:** regenerate, or retire in favor of virtual Icechunk stores?
+3. **Longitude convention** for regrid (−180..180 or 0..360).
+4. **Kerchunk JSONs:** regenerate, or retire in favor of virtual Icechunk stores?
 
 ## Effort
 
@@ -130,8 +128,7 @@ about an hour for the whole bucket; it parallelizes trivially.
 
 | Scope | Files | Compressed | Main variables uncompressed | Bundled `volcello` (dropped) |
 |---|---:|---:|---:|---:|
-| Newest release per series (22 series) | 7,576 | 18.9 TB | 40 TB | 12 TB |
-| All releases (46 directories) | 13,307 | 37.0 TB | 81 TB | 26 TB |
+| Newest release of each product (22) | 7,576 | 18.9 TB | 40 TB | 12 TB |
 
 The largest single file is 43 GB (PCI monthly raw 4-D). Newest-release volume by series
 is in the audit's `inventory.parquet` and `vars.parquet`. Most of it is NEP daily raw
@@ -180,8 +177,7 @@ than decompressing a local copy.
   file at a time).
 - **Cost (rough, on-demand):** compute ~1,000 vCPU-hours at $0.04–0.10 ≈ **$40–100**;
   in-region transfer free; storing ~15–19 TB of output ≈ **$350–450 per month** in S3
-  Standard until it replaces the current files. All releases would double compute and
-  storage.
+  Standard until it replaces the current files.
 - **After the rebuild, the Icechunk build gets much faster.** Standard chunks mean far
   fewer chunk references: the PCI 4-D files that took VirtualiZarr 4–8 minutes each have
   40,000–90,000 chunks now and would have about 1,600 per variable.
@@ -196,7 +192,7 @@ than decompressing a local copy.
 | 4. Pilot one series end to end | 1–2 days | NEP monthly regrid r20260701 (437 files, 0.33 TB), then build its Icechunk store and test it with users |
 | 5. Full run on the fleet | about 1 day | Half a day of machine time, plus reruns |
 | 6. Build Icechunk stores from rebuilt files | 1–2 days | One group per series becomes possible |
-| 7. CEFI regenerates what reprocessing can't fix | CEFI's calendar | P9 (unless weights shared), P10, P11, missing member |
+| 7. CEFI regenerates what reprocessing can't fix | CEFI's calendar | P6 (unless weights shared), P7, P8, P10 missing member |
 
 **Total: about 3–4 weeks of engineering after the standard is agreed.** Machine time
 is not the bottleneck.

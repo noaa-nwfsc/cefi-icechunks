@@ -7,7 +7,7 @@ the first occurrence of that stamp. Reading one spatial chunk rather than whole
 slices keeps memory near one decompressed chunk (up to 160 MB for the daily
 per-year files) instead of one per spatial tile.
 
-Output: audit/out/dup_values.csv
+Output: audit/out/dup_values.csv (not committed; the newest releases have no duplicated stamps)
 
     python audit/dup_values.py
 """

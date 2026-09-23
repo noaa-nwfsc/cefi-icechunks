@@ -13,7 +13,8 @@ Each finding has a `category`:
     file          a file that is unreadable, misnamed, or in an unexpected format
     hygiene       inconsistent metadata that won't block a build but should be fixed
 
-    python audit/checks.py
+    python audit/checks.py                  # newest release of each product
+    python audit/checks.py --all-releases   # every release directory
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ import pandas as pd
 
 OUT = Path(__file__).parent / "out"
 FINDINGS: list[dict] = []
+ALLOWED_GROUPS: set[str] | None = None  # release directories to report on; None = all
 
 # variables expected alongside the primary one; anything else in a file is "bundled"
 AUX_VARS = {
@@ -44,6 +46,8 @@ STEP_DAYS = {"daily": (1.0, 1.0), "monthly": (28.0, 31.0), "yearly": (365.0, 366
 
 
 def add(category, check, group=None, var=None, files=(), detail="", n_files=None):
+    if ALLOWED_GROUPS is not None and group is not None and group not in ALLOWED_GROUPS:
+        return
     files = list(files)
     FINDINGS.append(
         {
@@ -128,8 +132,10 @@ def _doubled_letter(a: str, b: str) -> bool:
     return any(b[i] == b[i - 1] and b[:i] + b[i + 1:] == a for i in range(1, len(b)))
 
 
-def check_kerchunk(inv: pd.DataFrame) -> None:
-    ncs = set(inv[inv.ext == "nc"].key)
+def check_kerchunk(inv: pd.DataFrame, inv_all: pd.DataFrame) -> None:
+    """inv: the release directories being reported on; inv_all: the whole bucket, since a
+    JSON can point at a NetCDF in any directory."""
+    ncs = set(inv_all[inv_all.ext == "nc"].key)
     referenced = set()
     cats = defaultdict(list)
     for line in (OUT / "kerchunk.jsonl").open():
@@ -161,7 +167,7 @@ def check_kerchunk(inv: pd.DataFrame) -> None:
     for (check, why), keys in cats.items():
         for grp, ks in pd.Series(keys).groupby(pd.Series(keys).map(lambda k: "/".join(k.split("/")[1:7]))):
             add("kerchunk", check, grp, None, ks, why or "")
-    unref = pd.Series(sorted(ncs - referenced))
+    unref = pd.Series(sorted(set(inv[inv.ext == "nc"].key) - referenced))
     for grp, ks in unref.groupby(unref.map(lambda k: "/".join(k.split("/")[1:7]))):
         add("kerchunk", "nc-not-referenced-by-any-json", grp, None, ks, "")
 
@@ -525,23 +531,47 @@ def check_forecasts(files: pd.DataFrame, vars_: pd.DataFrame, axes: pd.DataFrame
         units = g.units.fillna("None").map(lambda u: re.sub(r"\d{4}-\d{2}-\d{2}.*", "<date>", u)).value_counts()
         n = g["values"].map(len).value_counts()
         # decoded, "days since <init>" units turn identical numbers into different dates per init
-        rel = g["values"].map(lambda x: round(x[0], 3)).nunique() == 1 and g.units.fillna("").nunique() == 1
+        rel = g["values"].map(lambda x: tuple(np.round(x, 3))).nunique() == 1 and g.units.fillna("").nunique() == 1
         add("hygiene" if rel else "concat", "forecast-lead-encoding", grp, "lead", [],
             f"units {units.to_dict()}; lengths {n.to_dict()}; "
             + ("lead identical across inits" if rel else
-               "lead decodes to absolute dates that change with each init (units 'days since <init>'), "
+               "lead is days since the init date and decodes to absolute dates that change with each init (units 'days since <init>'), "
                "so inits can't share one lead coordinate without decode_times=False or re-encoding"),
             n_files=len(g))
 
 
+def newest_groups(inv: pd.DataFrame) -> set[str]:
+    """The newest release directory of each product (region/domain/experiment/freq/grid)."""
+    nc = inv[inv.ext == "nc"].dropna(subset=["group"])
+    series = nc.group.str.rsplit("/", n=1).str[0]
+    newest = nc.groupby(series).release.max()
+    return {f"{s}/{r}" for s, r in newest.items()}
+
+
 def main() -> None:
-    inv = pd.read_parquet(OUT / "inventory.parquet")
+    import argparse
+
+    global ALLOWED_GROUPS
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--all-releases", action="store_true",
+                    help="report on every release directory, not just the newest of each product")
+    args = ap.parse_args()
+
+    inv = inv_all = pd.read_parquet(OUT / "inventory.parquet")
     files = pd.read_parquet(OUT / "files.parquet")
     vars_ = pd.read_parquet(OUT / "vars.parquet")
     axes = pd.read_parquet(OUT / "axes.parquet")
+    if not args.all_releases:
+        # older releases are superseded; CEFI is fixing problems release by release
+        ALLOWED_GROUPS = newest_groups(inv)
+        inv = inv[inv.group.isin(ALLOWED_GROUPS)]
+        files = files[files.group.isin(ALLOWED_GROUPS)]
+        vars_ = vars_[vars_.key.isin(files.key)]
+        axes = axes[axes.key.isin(files.key)]
+        print(f"newest release of each product: {len(ALLOWED_GROUPS)} directories")
 
     check_inventory(inv)
-    check_kerchunk(inv)
+    check_kerchunk(inv, inv_all)
     check_smoke()
     prim = check_files(files, vars_)
     t = time_table(files, axes)

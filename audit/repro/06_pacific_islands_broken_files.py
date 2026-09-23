@@ -7,7 +7,7 @@
   - average_DT chunk [512] (and time_bnds chunk [800, 2] where present) exceed the 396-step axis,
     which VirtualiZarr accepts for reading but refuses to concatenate.
 
-    python audit/repro/10_pacific_islands_broken_files.py
+    python audit/repro/06_pacific_islands_broken_files.py
 """
 
 import json

@@ -4,7 +4,7 @@ so VirtualiZarr can't concatenate consecutive years on a regular chunk grid.
 
 Uses the newest NEP daily regrid release (r20260701), where the time axis itself is clean.
 
-    python audit/repro/03_per_year_time_chunks.py
+    python audit/repro/02_per_year_time_chunks.py
 """
 
 import warnings

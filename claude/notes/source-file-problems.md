@@ -4,30 +4,36 @@ The full catalogue is `audit/report.md`. Every finding is in `audit/out/findings
 and each problem has a standalone script in `audit/repro/`. This note records what a
 later session needs and could not easily reconstruct.
 
-## Headline
+## Scope
 
-- **Build from the newest release, not r20250912.** In every newest hindcast release
-  except PCI monthly raw, all variables share one time axis. The 390/396 split
-  (duplicated Jan–Jun 2025 tail), the daily series ending in different months, and the
-  zeroed salinity belong to NEP r20250912 and its copy r20251001. The existing
-  `build_nep_icechunk_*.py` scripts and the README still point at r20250912.
-- **What still blocks one group per series** in the newest releases:
-  - per-year daily files: the 100-step time chunk doesn't divide 365, and VirtualiZarr
-    refuses to concatenate them (P1)
-  - bundled `volcello` copies inside raw files (P6)
-  - netCDF3 static files with land-masked `geolon`/`geolat` (P8)
-  - NWA monthly regrid on three `lon` grids (P9)
-  - broken PCI monthly raw files (P10)
-  - forecast lead/member inconsistencies (P12, P13)
+The report covers only the **newest release of each of the 22 products**, at the user's
+request: older releases are superseded and the CEFI team is fixing things. `checks.py`
+defaults to the newest releases; `--all-releases` restores the full view. Problems seen
+only in old releases (NEP r20250912: the 390/396 duplicated tail, zeroed salinity,
+mismatched daily end dates; r20251001, a byte-identical copy of r20250912) are dropped
+from the report. The existing `build_nep_icechunk_*.py` scripts and the README still
+point at r20250912, so rebuild them from r20260701.
+
+## Headline (newest releases)
+
+- Time axes are clean: one axis per hindcast product except PCI monthly raw.
+- **Chunking is the biggest problem (P1):** 21 chunk shapes among the main variables,
+  406 files on netCDF-C default ~4 MiB chunking, and chunks from about 1 MB (PCI raw,
+  many only KB compressed) to 160 MB (NEP/NWA 3-D).
+- Other blockers:
+  - per-year daily files whose 100-step time chunk doesn't divide 365 (P2)
+  - bundled `volcello` and the typo'd `vollcello` (P4)
+  - netCDF3 static files with land-masked `geolon`/`geolat` (P5)
+  - NWA monthly regrid on two `lon` grids (P6)
+  - broken PCI monthly raw files (P7)
+  - decadal `lead` as dates (P9)
+  - seasonal forecast/reforecast member, fill value and layout problems (P10)
 - **Kerchunk JSON contents are right where they exist** (byte ranges match VirtualiZarr).
-  The failures are around them: empty, misnamed, pointing into other directories, and
-  25 static JSONs pointing at *another region's* static file.
+  The failures are around them: empty, misnamed, and 22 static JSONs pointing at
+  *another region's* static file (P11).
 
 ## Chunking and the rebuild
 
-- There is no chunking standard: 39 chunk shapes among the main variables, and 1,687
-  files use netCDF-C's default ~4 MiB chunking (P17 in the report). Chunks run from
-  about 1 MB (PCI raw, many only KB compressed) to 160 MB (NEP/NWA 3-D).
 - The user intends to argue that CEFI rebuild every NetCDF to one standard.
   `audit/rebuild.md` has a draft standard (v0, open questions listed) and the effort:
   about 250–1,000 core-hours and half a day on ~25 VMs for the newest releases, and
@@ -43,14 +49,12 @@ later session needs and could not easily reconstruct.
 - **Chunk shapes that differ between variables are not a merge blocker**; each Zarr
   array has its own chunks. The blockers are a different time *axis*, and irregular
   chunks when *concatenating* one variable's files.
-- **Salinity `so` 1999/2001 in r20250912 is zeroed data, not just bad stamps.** The
-  earlier workaround (assigning a template time axis) hid about 29 days a year of
-  salinity = 0. It's fixed in r20260701.
+- **If a build ever uses NEP r20250912:** `so` for 1999 and 2001 has about 29 days a
+  year of zeroed data, not just bad stamps, and the old template-time workaround hides
+  it. It's fixed in r20260701.
 - **Most "missing" Kerchunk JSONs are misnamed** (first character dropped, e.g.
   `hlos...json` for `chlos...nc`). Match JSONs to NetCDFs by the URL inside the JSON,
   never by filename.
-- **Seasonal reforecast init months differ by release** (Feb/Jun/Sep/Dec vs
-  Jan/Apr/Jul/Oct). That's a schedule change, not missing inits.
 
 ## Running the audit on this hub
 
