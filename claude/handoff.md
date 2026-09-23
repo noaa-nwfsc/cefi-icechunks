@@ -39,9 +39,6 @@ Orientation for a new session. Not a task list.
   misplaced data. They were built by appending per-year files with
   `append_dim="time"`, where the 100-day source chunk doesn't divide 365. The issue asks
   for a README warning and a decision on the groups; not started.
-- **Next task (in `~/agent-skills`, not here):** record the append pitfall in the
-  `virtual-icechunk` skill so new stores don't repeat it. The user isn't sure whether the
-  answer is concat (which refuses these files) or something else. The evidence is
-  `audit/report.md` P2, `audit/repro/02a` and `02b`, and
-  `notes/source-file-problems.md`.
+- **Next task (in `~/agent-skills`, not here):** nmfs-opensci/agent-skills issue #21,
+  which takes the append pitfall into the `virtual-icechunk` skill.
 - Issue #5 is still open; PR #7 deliberately didn't close it.
