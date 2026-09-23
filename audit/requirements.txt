@@ -1,0 +1,16 @@
+# Environment for the source-file audit (issue #5). Tested in a clean venv:
+#   /srv/conda/bin/python3.12 -m venv audit/.venv && audit/.venv/bin/pip install -r audit/requirements.txt
+h5py
+s3fs
+fsspec
+xarray
+cftime
+numpy
+pandas
+pyarrow
+scipy            # reads the netCDF3 static files
+virtualizarr[hdf]
+obstore
+obspec-utils     # ObjectStoreRegistry, imported directly by the repro scripts
+icechunk         # 02b_appended_store_misplacement.py reads the published store
+zarr

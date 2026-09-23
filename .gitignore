@@ -3,3 +3,9 @@
 *_json
 .ipynb_checkpoints
 Untitled*.ipynb
+audit/.venv
+audit/out/*.parquet
+audit/out/*.jsonl
+audit/out/*.log
+__pycache__/
+audit/out/dup_values.csv
