@@ -27,6 +27,13 @@ Orientation for a new session. Not a task list.
 
 ## Recent / open threads
 
-- Planning a systematic audit of every file group in the bucket for defects that
-  block Icechunk builds. Diagnose and write repro code only; fixing is a later task.
-  See `notes/bucket-inventory.md`.
+- **Source-file audit done (issue #5, branch `audit-source-files-5`).** It covers all 46
+  release directories. `audit/report.md` has the problem catalogue, `audit/repro/` has
+  one script per problem, and the summary is in `notes/source-file-problems.md`. The
+  audit only diagnoses; fixing and rebuilding are separate tasks. @eeholmes reports the
+  findings to CEFI; Claude doesn't file upstream.
+- Main takeaway: the newest releases (NEP r20260701, NWA r20250715, PCI r20260427)
+  have one time axis per hindcast group. The current build scripts still use NEP
+  r20250912, where most of the known problems live.
+- Build from the NetCDFs with VirtualiZarr. CEFI's Kerchunk JSONs are an older workflow;
+  they're audited, not relied on.
