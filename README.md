@@ -142,15 +142,36 @@ plt.show()
 
 See the example notebooks `cefi_nep_monthly.ipynb` and `cefi_nep_daily.ipynb` for the code that created the icechunk stores. 
 
-## Citation and attribution
+## Reuse and citation
 
-Please cite the original NOAA CEFI regional MOM6 data product when using the data scientifically. This Icechunk repository is a derived access layer for demonstration and teaching purposes; the underlying data are from NOAA.
+This work is released under the [Apache License 2.0](LICENSE). You are free to use,
+copy, modify, and redistribute it, including commercially. If you use it in published
+work, in a presentation, or in another repository, please give attribution:
+
+> Holmes, E.E. (2026). *CEFI Icechunks*. noaa-nwfsc/cefi-icechunks.
+> https://github.com/noaa-nwfsc/cefi-icechunks
+
+BibTeX:
+
+```bibtex
+@software{holmes_cefi_icechunks_2026,
+  author  = {Holmes, Eli E.},
+  title   = {CEFI Icechunks},
+  year    = {2026},
+  url     = {https://github.com/noaa-nwfsc/cefi-icechunks}
+}
+```
+
+### The CEFI data
+
+The Apache license covers this repository's code and documentation, not the model
+output. The Icechunk stores hold only virtual references to NOAA CEFI regional MOM6
+NetCDF files, which stay unmodified in NOAA's public bucket; see the license and use
+constraints of the original data. Please cite the original NOAA CEFI regional MOM6 data
+product when using the data scientifically. The Icechunk stores are a derived access
+layer for demonstration and teaching purposes.
 
 Useful project links:
 
 - NOAA CEFI portal: https://psl.noaa.gov/cefi_portal/
 - CEFI data cookbook: https://noaa-cefi-portal.github.io/cefi-cookbook/
-
-## License
-
-See the license and use constraints for the original NOAA CEFI regional MOM6 data. This repository provides virtual access to that public source data and does not modify the original NetCDF files.
