@@ -3,9 +3,13 @@
 Issue: noaa-nwfsc/cefi-icechunks#5. Audit run 2026-09-23 against
 `s3://noaa-oar-cefi-regional-mom6-pds` (anonymous).
 
-**Scope.** The newest release of each of the 22 products (region / experiment /
-frequency / grid): 7,576 NetCDFs (18.9 TB) and 7,670 Kerchunk JSONs. Earlier releases
-are superseded and not covered.
+**Scope.** The newest release of each product (region / experiment / frequency / grid).
+The main report covers the 18 Northeast Pacific (NEP) and Northwest Atlantic (NWA)
+products: 6,783 NetCDFs (15.3 TB) and 6,880 Kerchunk JSONs. The four Pacific Islands
+(PCI) products are still drafts, so their problems are listed separately at the end
+([Pacific Islands draft products](#pacific-islands-draft-products)). They are recorded
+for the record, not measured against a finished-product standard. Earlier releases are
+superseded and not covered.
 
 **Goal it serves.** One virtual Icechunk group per product holding every variable (for
 example `nep/hindcast/monthly/regrid`). For each problem the question is whether it
@@ -15,60 +19,55 @@ estimate of the rebuild effort are in [`rebuild.md`](rebuild.md).
 
 ## Summary
 
-- **The time axes are in good shape.** In every hindcast product except PCI monthly raw,
-  all variables share one time axis. No duplicated or backwards time stamps were found.
+- **The time axes are in good shape.** Every NEP and NWA hindcast product has a single
+  time axis shared by all its variables. No duplicated or backwards time stamps were
+  found.
 - **There is no chunking standard, and that is the biggest problem.** The main variables
-  use 21 different chunk shapes. 406 files use netCDF-C's automatic ~4 MiB chunking,
-  meaning no chunking was chosen. Chunks run from under 1 MB (PCI raw, many only a few KB
-  compressed) to 160 MB (NEP and NWA 3-D) (P1).
+  use 19 different chunk shapes. 406 files use netCDF-C's automatic ~4 MiB chunking,
+  meaning no chunking was chosen. The 3-D variables use 160 MB chunks (P1).
 - **What else blocks one group per product:**
   - Per-year daily files use a 100-step time chunk that doesn't divide 365/366, so they
     can't be concatenated on a regular chunk grid (P2).
   - A full 4-D `volcello` is bundled inside other variables' raw files, and NEP daily
-    also carries a typo'd `vollcello` series (P4).
-  - The static files are netCDF3 and have land-masked coordinates (P5).
-  - NWA monthly regrid mixes two longitude grids (P6).
-  - PCI monthly raw has empty and broken files (P7).
-  - Forecast `lead` and `member` coordinates are inconsistent (P9, P10).
-- **Kerchunk JSON content is sound; the problems are around it.** Where a JSON exists and
-  points at the right file, its byte ranges matched VirtualiZarr's manifest in every
-  sampled file except three. However:
+    also carries a typo'd `vollcello` series (P3).
+  - The static files are netCDF3 and have land-masked coordinates (P4).
+  - NWA monthly regrid mixes two longitude grids (P5).
+  - Forecast `lead` and `member` coordinates are inconsistent (P7, P8).
+- **Kerchunk JSON content is sound; the problems are around it.** Every sampled JSON
+  that exists and points at the right file (246 files) matched VirtualiZarr's manifest
+  exactly. However:
   - 176 JSONs are empty.
-  - 643 are misnamed (a character dropped).
+  - 568 are misnamed (first character dropped).
   - 22 static-file JSONs point at **another region's or experiment's** static file
     (NEP's `ocean_stati.json` references the Pacific Islands `ocean_static.nc`, for
     example). Anyone using them silently gets the wrong grid.
-  - 146 NetCDFs are referenced by no JSON at all.
-  - Reference URLs mix `s3://` and bare paths (P11).
-- **VirtualiZarr parses every HDF5 file sampled** (335 of 335). It fails only on the
+  - 142 NetCDFs are referenced by no JSON at all.
+  - Reference URLs mix `s3://` and bare paths (P9).
+- **VirtualiZarr parses every HDF5 file sampled** (260 of 260). It fails only on the
   netCDF3 static files.
 
 ## Status of each product
 
 "Time axes" is the number of distinct time axes among a hindcast product's variables;
 1 means every variable can share one time dimension. Problem codes refer to the sections
-below. Kerchunk problems (P11) affect nearly every product and aren't repeated here.
+below. Kerchunk problems (P9) affect nearly every product and aren't repeated here.
 
 | Product | Release | .nc | Vars | Time axes | Problems |
 |---|---|---:|---:|---:|---|
-| nep hindcast daily raw | r20260701 | 414 | 28 | 1 | P1, P2, P4, P5 |
-| nep hindcast daily regrid | r20260701 | 346 | 26 | 1 | P1, P2, P4 (`vollcello`) |
-| nep hindcast monthly raw | r20260701 | 463 | 461 | 1 | P1, P4, P5 |
+| nep hindcast daily raw | r20260701 | 414 | 28 | 1 | P1, P2, P3, P4 |
+| nep hindcast daily regrid | r20260701 | 346 | 26 | 1 | P1, P2, P3 (`vollcello`) |
+| nep hindcast monthly raw | r20260701 | 463 | 461 | 1 | P1, P3, P4 |
 | nep hindcast monthly regrid | r20260701 | 437 | 437 | 1 | P1 |
-| nwa hindcast daily raw | r20250715 | 13 | 11 | 1 | P5 |
+| nwa hindcast daily raw | r20250715 | 13 | 11 | 1 | P4 |
 | nwa hindcast daily regrid | r20250715 | 11 | 11 | 1 | none found |
-| nwa hindcast monthly raw | r20250715 | 490 | 488 | 1 | P1, P4, P5 |
-| nwa hindcast monthly regrid | r20250715 | 464 | 464 | 1 | P1, P6 |
-| nwa multi-decadal yearly raw | r20260331 | 76 | 19 | 2 | P8 |
+| nwa hindcast monthly raw | r20250715 | 490 | 488 | 1 | P1, P3, P4 |
+| nwa hindcast monthly regrid | r20250715 | 464 | 464 | 1 | P1, P5 |
+| nwa multi-decadal yearly raw | r20260331 | 76 | 19 | 2 | P6 |
 | nwa multi-decadal yearly regrid | r20260331 | 32 | 8 | 1 | none found |
-| nwa decadal forecast monthly raw / regrid | r20250925 | 1100 / 1098 | 18 | – | P9, P5 (raw) |
-| nwa decadal forecast yearly raw / regrid | r20250819 | 367 / 366 | 6 | – | P9 |
-| nwa seasonal forecast monthly raw / regrid | r20250710 | 73 / 72 | 18 | – | P10, P5 (raw) |
-| nwa seasonal reforecast monthly raw / regrid | r20250413 | 481 / 480 | 4 | – | P10, P5 (raw) |
-| pci hindcast daily raw | r20260427 | 19 | 18 | 1 | P1, P3 (static file) |
-| pci hindcast daily regrid | r20260427 | 16 | 16 | 1 | none found |
-| pci hindcast monthly raw | r20260427 | 422 | 421 | 2 | P1, P3, P4, P7 |
-| pci hindcast monthly regrid | r20260427 | 336 | 336 | 1 | P7 (`calc` JSON) |
+| nwa decadal forecast monthly raw / regrid | r20250925 | 1100 / 1098 | 18 | – | P7, P4 (raw) |
+| nwa decadal forecast yearly raw / regrid | r20250819 | 367 / 366 | 6 | – | P7 |
+| nwa seasonal forecast monthly raw / regrid | r20250710 | 73 / 72 | 18 | – | P8, P4 (raw) |
+| nwa seasonal reforecast monthly raw / regrid | r20250413 | 481 / 480 | 4 | – | P8, P4 (raw) |
 
 ## Problems
 
@@ -76,54 +75,39 @@ Each problem lists where it occurs, the evidence, why it matters for a virtual I
 store, and the script under `audit/repro/` that reproduces it. Every finding is a row in
 `audit/out/findings.csv`.
 
-### P1. Chunking: no standard, and sizes poorly suited to cloud reads
+### P1. Chunking: no standard, and chunks too large
 A virtual Icechunk store keeps the source files' chunks, so every read costs whatever the
 NetCDF chunking dictates. Only rewriting the files can change it.
 
-- **No standard.** The main variables use 21 distinct chunk shapes, which differ between
+- **No standard.** The main variables use 19 distinct chunk shapes, which differ between
   regions, raw and regrid, and variables:
 
   | Chunk shape | Files | Uncompressed |
   |---|---:|---:|
   | `[10, 12, 200, 200]` | 1,578 | 19 MB |
-  | `[100, 200, 200]` | 1,565 | 16 MB |
+  | `[100, 200, 200]` | 1,214 | 16 MB |
   | `[2, 30, 211, 194]` | 1,098 | 10 MB |
-  | `[100, 10, 200, 200]` | 1,007 | 160 MB |
+  | `[100, 10, 200, 200]` | 1,006 | 160 MB |
   | `[4, 4, 282, 258]` | 480 | 4.7 MB |
   | `[38, 255, 107]` (netCDF-C default) | 390 | 4.1 MB |
-  | `[4, 4, 422, 387]` | 366 | 10.5 MB |
   | `[10, 10, 200, 200]` | 366 | 16 MB |
-  | `[20, 100, 100]` | 364 | 0.8 MB |
+  | `[4, 4, 422, 387]` | 366 | 10.5 MB |
   | `[12, 10, 200, 200]` | 108 | 19 MB |
-  | `[10, 10, 50, 50]` | 74 | 1.0 MB |
   | `[213, 109, 45]` (netCDF-C default) | 16 | 4.2 MB |
   | 9 other shapes | 148 | 3.5–80 MB |
-  | **21 shapes** | **7,560** | |
+  | **19 shapes** | **6,770** | |
 
 - **Many files were written without a chunking choice.** 406 files use `[38, 255, 107]`
   (every 2-D NEP monthly raw variable) or `[213, 109, 45]` (every 2-D NEP daily raw
   variable), both just under 4 MiB. That is netCDF-C's default chunking, which targets
   4 MiB (4,194,304 bytes) and derives the shape from the dimension sizes.
-- **Too small (Pacific Islands raw).** Measured on actual chunk references:
-
-  | Files | Chunk | Uncompressed | Compressed median (10–90%) | Chunks per file |
-  |---|---|---:|---:|---:|
-  | PCI monthly raw 2-D | `[20, 100, 100]` | 0.8 MB | 686 KB (158–715 KB) | 960 |
-  | PCI monthly raw 4-D (`rsdo`) | `[10, 10, 50, 50]` | 1.0 MB | 501 KB (4–865 KB) | 52,800 |
-  | PCI daily raw 2-D | `[20, 100, 100]` | 0.8 MB | 597 KB (145–651 KB) | 28,944 |
-  | PCI monthly regrid 2-D | `[100, 200, 200]` | 16 MB | 8.1 MB (3.6–10.8 MB) | 48 |
-
-  One map of a 4-D PCI variable through time takes tens of thousands of requests, many
-  for a few KB (land or deep levels). The same region's regrid files are chunked 20×
-  larger. Small chunks also make building the store slow: VirtualiZarr needed 4–8
-  minutes to index each PCI 4-D raw file, against about 6 s for a 2-D file.
 - **Too large (NEP and NWA 3-D).** `[100, 10, 200, 200]` is 160 MB uncompressed. NEP
   monthly `thetao` chunks are 27 MB compressed at the median and up to 94 MB; NWA regrid
   `thetao` is 16 MB median, up to 84 MB. Reading one time step at one level pulls the
   whole chunk.
 - **Chunks that don't fit the data.** Time chunks of 100 don't align with years or
-  months (P2). Spatial tiles of 200 or 50 don't divide the grids (816 × 342, 845 × 775,
-  539 × 725), so every file has ragged edge chunks.
+  months (P2). Spatial tiles of 200 don't divide the grids (816 × 342, 845 × 775), so
+  every file has ragged edge chunks.
 - **Repro:** `01_chunk_sizes_and_shapes.py`.
 
 ### P2. Per-year daily files: time chunk doesn't divide the file length
@@ -140,44 +124,30 @@ NetCDF chunking dictates. Only rewriting the files can change it.
   group; each array has its own chunks.)
 - **Repro:** `02_per_year_time_chunks.py`.
 
-### P3. Chunks longer than the array
-- **Where:** PCI monthly raw, all 422 files: `average_DT` chunk `[512]` and `time_bnds`
-  chunk `[800, 2]` on a 396-step axis. PCI daily raw's `ocean_static.nc` has the same
-  problem (`time` of length 1, chunk `[512]`).
-- **Why it matters:** VirtualiZarr reads these but won't concatenate them ("chunk shape
-  larger than their array shape"). That matters only when appending new time steps,
-  since these are full-period files.
-- **Repro:** `06_pacific_islands_broken_files.py`.
-
-### P4. Bundled `volcello`, and a typo'd `vollcello` series
+### P3. Bundled `volcello`, and a typo'd `vollcello` series
 - **Bundled copies:** a full 4-D `volcello` is stored inside the files of other 3-D
-  variables in every raw monthly product:
-  - 62 files in NEP monthly raw
-  - 62 in NWA monthly raw
-  - 66 in PCI monthly raw
-
-  Two NEP daily raw variables also carry one. A naive merge of a product's files sees
-  many `volcello` arrays. The copies also inflate file size: NEP monthly `thetao` is
-  16.5 GB against 7.4 GB for `volcello` alone, and PCI's 4-D raw files are about 42 GB
-  each.
+  variables: 62 files in NEP monthly raw and 62 in NWA monthly raw. Two NEP daily raw
+  variables also carry one. A naive merge of a product's files sees many `volcello`
+  arrays. The copies also inflate file size: NEP monthly `thetao` is 16.5 GB against
+  7.4 GB for `volcello` alone.
 - **Typo'd series:** NEP daily raw and regrid carry both `volcello` (33 files each) and
   `vollcello` (33 files each). Six daily 3-D files bundle `vollcello` and name it in
   `external_variables`.
 - **Repro:** `03_bundled_volcello_and_vollcello.py`.
 
-### P5. Static files: netCDF3 format, masked coordinates, naming
-- **Format:** the netCDF3 static files (`ocean_static.nc`, `ice_static.nc`; 10 across the
-  raw products, all `CDF\x02`) can't be read by VirtualiZarr's HDFParser
+### P4. Static files: netCDF3 format, masked coordinates, naming
+- **Format:** the 10 static files in the raw products (`ocean_static.nc`,
+  `ice_static.nc`) are netCDF3 (`CDF\x02`). VirtualiZarr's HDFParser fails on them
   (`file signature not found`), so they need the netCDF3 parser or conversion.
 - **Masked coordinates:** their `geolon`/`geolat` are masked over land (57,677 of
   279,072 points in NEP), and each file uses a different fill value: 1e20 in
   `ocean_static`, −1e34 in `ice_static`. The data files carry the full coordinate there
   and are identical elsewhere, so the two conflict in a merge.
 - **Naming:** the static files follow no naming pattern. Their JSONs are often misnamed
-  or point at another region's static file (P11).
+  or point at another region's static file (P9).
 - **Repro:** `04_static_files.py`.
 
-### P6. NWA monthly regrid: two longitude grids
+### P5. NWA monthly regrid: two longitude grids
 - **Evidence:** `lon` has 774 points in every file of r20250715, but on two grids:
   - from −98.4423 at 0.0807° spacing: 427 files (`Heat_PmE`, `thetao`, ...)
   - from −98.0 at 0.0801° spacing: 37 files (`ALB`, `BMELT`, ...)
@@ -185,26 +155,12 @@ NetCDF chunking dictates. Only rewriting the files can change it.
   37 variables can't share a group with the rest without regridding.
 - **Repro:** `05_regrid_lon_grids.py`.
 
-### P7. PCI monthly raw: empty or broken files, and bad Kerchunk JSONs
-- **`T_adx_2d`:** time has length 0 and no units, the data is `[0, 539, 726]`, and
-  `xq`/`yh` are all zeros. Its Kerchunk JSON still describes 396 steps.
-- **`ffedet_btm`:** the data variable is empty (`[0, 539, 725]`), and `xh`/`yh` are all
-  zeros.
-- **`speed`:** the file has no `speed` variable at all, and `xh`/`yh` are all zeros.
-- **`calc` (raw and regrid):** the JSON is named `alc...json`. Every chunk reference has
-  the right length, but the offset is shifted by a constant: 9,298 bytes too low in raw,
-  1,463 too high in regrid. The JSON also omits the bundled `volcello`. The JSONs are
-  dated later than the NetCDFs, so they were generated from a different copy of each
-  file than the one in the bucket.
-- **Repro:** `06_pacific_islands_broken_files.py`, and `09_kerchunk_json_problems.py`
-  for the JSONs.
-
-### P8. NWA multi-decadal: one scenario missing a year
+### P6. NWA multi-decadal: one scenario missing a year
 - `T_adx` SSP585 has 130 yearly steps and jumps from 2044 to 2046. Every other variable
   and scenario has 131 steps (1970–2100).
-- **Repro:** `07_multidecadal_missing_year.py`.
+- **Repro:** `06_multidecadal_missing_year.py`.
 
-### P9. Decadal forecast: `lead` is encoded as dates
+### P7. Decadal forecast: `lead` is encoded as dates
 - **Where:** monthly r20250925 and yearly r20250819.
 - **Evidence:** `lead` has units `days since <init date>`, and calendar `gregorian`
   where `average_T1` says `proleptic_gregorian`. The numbers differ between inits
@@ -212,9 +168,9 @@ NetCDF chunking dictates. Only rewriting the files can change it.
   for 2020). Decoded, every init's lead becomes a different set of absolute dates.
 - **Why it matters:** inits can't be stacked on a shared lead coordinate without
   `decode_times=False` or re-encoding.
-- **Repro:** `08_forecast_coordinates.py`.
+- **Repro:** `07_forecast_coordinates.py`.
 
-### P10. Seasonal forecast and reforecast: ensemble and layout
+### P8. Seasonal forecast and reforecast: ensemble and layout
 - **Missing member (forecast r20250710):** all 18 init-202510 files have 9 members;
   member 6 is missing. Their chunks change to match: `[12, 9, 200, 200]` in raw,
   `[4, 3, 282, 258]` in regrid.
@@ -226,27 +182,24 @@ NetCDF chunking dictates. Only rewriting the files can change it.
   therefore can't share a store without reordering.
 - **Bundled variables:** each file also carries the variable's anomaly (`tos_anom`
   beside `tos`), and seasonal forecast files a `valid_time`.
-- **Repro:** `08_forecast_coordinates.py`.
+- **Repro:** `07_forecast_coordinates.py`.
 
-### P11. Kerchunk JSONs
+### P9. Kerchunk JSONs
 
 | Problem | Count |
 |---|---:|
 | Empty (0-byte) JSON | 176 |
-| Named with the first character dropped (`hlos...json` → `chlos...nc`) | 642 |
-| Named with the last character dropped (`ocean_stati.json`) | 1 |
+| Named with the first character dropped (`hlos...json` → `chlos...nc`) | 568 |
 | **Static-file JSON referencing another region's or experiment's static file** (NEP → PCI or NWA decadal; NWA → NEP) | 22 |
-| Static-file JSON referencing another directory of the same region (PCI daily → monthly) | 1 |
 | `all.json` referencing all 480 reforecast files | 2 |
-| Reference URL lacks `s3://`; the rest include it | 5,539 |
-| NetCDF referenced by no JSON | 146 |
-| JSON disagrees with its NetCDF (`calc` raw and regrid, `T_adx_2d`; P7) | 3 |
+| Reference URL lacks `s3://`; the rest include it | 4,749 |
+| NetCDF referenced by no JSON | 142 |
 
-For every other sampled pair (320 files with a JSON), every chunk reference matched
-VirtualiZarr's manifest exactly: path, offset and length. Small chunks that Kerchunk
-inlines as base64 were not compared.
+Every sampled pair where the JSON exists and references the right file (246 files)
+matched VirtualiZarr's manifest exactly: path, offset and length for every chunk. Small
+chunks that Kerchunk inlines as base64 were not compared.
 
-- **Repro:** `09_kerchunk_json_problems.py`.
+- **Repro:** `08_kerchunk_json_problems.py`.
 
 ### Smaller inconsistencies (don't block a build)
 - **Extra coordinate variables:** NWA monthly raw bundles the sea-ice grid's `xT`, `yT`,
@@ -255,20 +208,88 @@ inlines as base64 were not compared.
 ## Checked and found consistent
 
 - **Time:** within each hindcast product, time units and calendar agree, and there are
-  no duplicated, backwards or irregular time stamps (apart from P7 and P8).
-- **Codecs and dtype:** every main variable is float32 with zlib level 2. PCI raw omits
-  shuffle and everything else uses it, but never mixed within a product, so codecs never
-  block a merge.
+  no duplicated, backwards or irregular time stamps (apart from P6).
+- **Codecs and dtype:** every main variable is float32 with zlib level 2 and shuffle.
 - **Files:** no HDF5 file failed to open, and none uses HDF5 subgroups.
 - **Coordinates:** grid coordinates (`xh`, `yh`, `lat`, `lon`, `z_l`, ...) agree across
-  a product's files, apart from P5, P6, P7 and P10.
+  a product's files, apart from P4, P5 and P8.
 - **Decadal forecasts:** complete annual init series (1965–2025 in r20250925).
+
+## Pacific Islands draft products
+
+The four PCI products (r20260427: hindcast daily and monthly, raw and regrid; 793
+NetCDFs, 3.5 TB) are still drafts. The problems below are listed so they're on record as
+the products are finished, not as failures against a finished-product standard.
+
+| Product | .nc | Vars | Time axes | Notes |
+|---|---:|---:|---:|---|
+| pci hindcast daily raw | 19 | 18 | 1 | PCI-1, PCI-3 (static file) |
+| pci hindcast daily regrid | 16 | 16 | 1 | none found |
+| pci hindcast monthly raw | 422 | 421 | 2 | PCI-1 to PCI-5 |
+| pci hindcast monthly regrid | 336 | 336 | 1 | PCI-5 (`calc` JSON) |
+
+### PCI-1. Chunks are very small in raw, and differ from regrid
+Measured on actual chunk references:
+
+| Files | Chunk | Uncompressed | Compressed median (10–90%) | Chunks per file |
+|---|---|---:|---:|---:|
+| PCI monthly raw 2-D | `[20, 100, 100]` | 0.8 MB | 686 KB (158–715 KB) | 960 |
+| PCI monthly raw 4-D (`rsdo`) | `[10, 10, 50, 50]` | 1.0 MB | 501 KB (4–865 KB) | 52,800 |
+| PCI daily raw 2-D | `[20, 100, 100]` | 0.8 MB | 597 KB (145–651 KB) | 28,944 |
+| PCI monthly regrid 2-D | `[100, 200, 200]` | 16 MB | 8.1 MB (3.6–10.8 MB) | 48 |
+
+- One map of a 4-D raw variable through time takes tens of thousands of requests, many
+  for a few KB (land or deep levels). The regrid files are chunked 20× larger.
+- Small chunks also make building a store slow: VirtualiZarr needed 4–8 minutes to index
+  each 4-D raw file, against about 6 s for a 2-D file.
+- PCI raw omits the shuffle filter that every other product uses. That doesn't block a
+  merge within PCI.
+- **Repro:** `01_chunk_sizes_and_shapes.py` (the PCI rows).
+
+### PCI-2. Empty or broken files (monthly raw)
+- **`T_adx_2d`:** time has length 0 and no units, the data is `[0, 539, 726]`, and
+  `xq`/`yh` are all zeros.
+- **`ffedet_btm`:** the data variable is empty (`[0, 539, 725]`), and `xh`/`yh` are all
+  zeros.
+- **`speed`:** the file has no `speed` variable at all, and `xh`/`yh` are all zeros.
+
+These give monthly raw its second time axis (the empty one).
+
+- **Repro:** `09_pacific_islands_draft.py`.
+
+### PCI-3. Chunks longer than the array
+- On the 396-step axis of the monthly raw files, `time_bnds` has chunk `[800, 2]` in 418
+  of the 422 files, and `average_DT` has chunk `[512]` in 406. The static files have
+  `time` of length 1 with chunk `[512]` (monthly and daily raw).
+- VirtualiZarr reads these but won't concatenate them ("chunk shape larger than their
+  array shape"). That matters only when appending new time steps.
+- **Repro:** `09_pacific_islands_draft.py`.
+
+### PCI-4. Bundled `volcello`
+- A full 4-D `volcello` is inside 66 other monthly raw files, making each 4-D raw file
+  about 42 GB.
+- **Repro:** `03_bundled_volcello_and_vollcello.py` (the `calc` line).
+
+### PCI-5. Kerchunk JSONs
+- **Misnamed:** 74 JSONs have the first character dropped (`alc...json` for `calc`) and
+  one the last (`ocean_stati.json`).
+- **Other directory:** the daily raw static JSON references the monthly raw static file.
+- **No JSON:** 4 NetCDFs aren't referenced by any JSON.
+- **No `s3://`:** none of the 790 JSONs includes the `s3://` prefix.
+- **Disagrees with the NetCDF:**
+  - `calc` (raw and regrid): every chunk reference has the right length, but the offset
+    is shifted by a constant (9,298 bytes too low in raw, 1,463 too high in regrid). The
+    JSON also omits the bundled `volcello`. The JSONs are dated later than the NetCDFs,
+    so they were generated from a different copy of each file.
+  - `T_adx_2d`: the JSON describes 396 time steps, but the NetCDF has none.
+- All other sampled PCI JSONs (71 files) matched VirtualiZarr exactly.
+- **Repro:** `09_pacific_islands_draft.py`.
 
 ## Method
 
 The scanners read the whole bucket; `checks.py` then reports on the newest release of
 each product (pass `--all-releases` to report on every release directory). Every step
-reads metadata only, except the targeted reads for P5 and P7. Nothing reads whole data
+reads metadata only, except a few targeted reads (P4, PCI-2). Nothing reads whole data
 variables.
 
 | Step | Script | Output (in `audit/out/`) |
@@ -277,9 +298,9 @@ variables.
 | Read HDF5/netCDF3 metadata and small coordinate values from every NetCDF | `scan_headers.py` | `headers.jsonl` (500 MB, not committed) |
 | Summarize every Kerchunk JSON | `scan_kerchunk.py` | `kerchunk.jsonl` (not committed) |
 | Flatten to tables | `tables.py` | `files/vars/axes.parquet` (not committed) |
-| Parse a sample with VirtualiZarr (one file per distinct variable signature, up to 20 per release; 343 files in the newest releases) and compare each manifest with its Kerchunk JSON | `smoke_virtualizarr.py` | `smoke.jsonl` (not committed) |
+| Parse a sample with VirtualiZarr (one file per distinct variable signature, up to 20 per release; 343 files in the newest releases, 75 of them PCI) and compare each manifest with its Kerchunk JSON | `smoke_virtualizarr.py` | `smoke.jsonl` (not committed) |
 | Read data at duplicated time stamps (none in the newest releases) | `dup_values.py` | – |
-| Run all checks | `checks.py` | `findings.csv`, `time_axes.csv` |
+| Run all checks | `checks.py` | `findings.csv`, `time_axes.csv` (PCI included; filter on `group`) |
 
 To rerun, from the repo root:
 
@@ -307,7 +328,7 @@ stopped.
 - **Data values** were read only for the cases above. A block of zeroed or missing data
   with valid time stamps would not be detected. A cheap follow-up is to look for
   anomalously small compressed chunks, since zeros compress to almost nothing.
-- **The VirtualiZarr parse and Kerchunk byte-range comparison** covered a 343-file
-  sample of the newest releases, not all 7,576 files. The header checks covered every
+- **The VirtualiZarr parse and Kerchunk byte-range comparison** covered a sample
+  (268 NEP/NWA files and 75 PCI files), not every file. The header checks covered every
   file.
 - **Raw vs regrid consistency** (same variables and time axes in both) was not checked.

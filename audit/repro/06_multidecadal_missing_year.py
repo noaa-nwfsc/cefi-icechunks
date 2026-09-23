@@ -2,7 +2,7 @@
 """Repro: NWA multi-decadal outlook T_adx for SSP585 has 130 yearly steps with a two-year
 jump, while every other variable/scenario has 131 (1970-2100).
 
-    python audit/repro/07_multidecadal_missing_year.py
+    python audit/repro/06_multidecadal_missing_year.py
 """
 
 import cftime

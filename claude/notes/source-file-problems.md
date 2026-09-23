@@ -14,23 +14,27 @@ mismatched daily end dates; r20251001, a byte-identical copy of r20250912) are d
 from the report. The existing `build_nep_icechunk_*.py` scripts and the README still
 point at r20250912, so rebuild them from r20260701.
 
+**Pacific Islands (PCI) products are drafts.** At the user's request their problems are
+listed in a separate final section of the report (PCI-1 to PCI-5), not in the main
+P1–P9 list, so the report doesn't imply draft products should meet the standard yet.
+Keep that framing in anything written for CEFI.
+
 ## Headline (newest releases)
 
-- Time axes are clean: one axis per hindcast product except PCI monthly raw.
-- **Chunking is the biggest problem (P1):** 21 chunk shapes among the main variables,
-  406 files on netCDF-C default ~4 MiB chunking, and chunks from about 1 MB (PCI raw,
-  many only KB compressed) to 160 MB (NEP/NWA 3-D).
+- Time axes are clean: one axis per NEP/NWA hindcast product.
+- **Chunking is the biggest problem (P1):** 19 chunk shapes among the NEP/NWA main
+  variables, 406 files on netCDF-C default ~4 MiB chunking, and 160 MB 3-D chunks.
+  (PCI raw has the opposite problem, ~1 MB chunks: PCI-1.)
 - Other blockers:
   - per-year daily files whose 100-step time chunk doesn't divide 365 (P2)
-  - bundled `volcello` and the typo'd `vollcello` (P4)
-  - netCDF3 static files with land-masked `geolon`/`geolat` (P5)
-  - NWA monthly regrid on two `lon` grids (P6)
-  - broken PCI monthly raw files (P7)
-  - decadal `lead` as dates (P9)
-  - seasonal forecast/reforecast member, fill value and layout problems (P10)
-- **Kerchunk JSON contents are right where they exist** (byte ranges match VirtualiZarr).
-  The failures are around them: empty, misnamed, and 22 static JSONs pointing at
-  *another region's* static file (P11).
+  - bundled `volcello` and the typo'd `vollcello` (P3)
+  - netCDF3 static files with land-masked `geolon`/`geolat` (P4)
+  - NWA monthly regrid on two `lon` grids (P5)
+  - decadal `lead` as dates (P7)
+  - seasonal forecast/reforecast member, fill value and layout problems (P8)
+- **Kerchunk JSON contents are right where they exist**; all three JSONs that disagree
+  with their NetCDF are PCI. The failures are around them: empty, misnamed, and 22 static
+  JSONs pointing at *another region's* static file (P9).
 
 ## Chunking and the rebuild
 

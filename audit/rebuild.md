@@ -1,7 +1,8 @@
 # Rebuilding the CEFI NetCDFs: draft standard and effort
 
-Companion to [`report.md`](report.md), which lists the problems (P1–P11) in the newest
-release of each product. This document covers what a rebuild would fix and what it
+Companion to [`report.md`](report.md), which lists the problems (P1–P9) in the newest
+release of each NEP and NWA product, and the Pacific Islands draft products' problems
+separately (PCI-1 to PCI-5). This document covers what a rebuild would fix and what it
 can't, a **draft** standard for the rebuilt
 files, and what the work would take. The standard is a starting point for discussion
 with CEFI, not a settled spec. The numbers come from the audit and from timings on real
@@ -9,17 +10,18 @@ files, stated below.
 
 ## Summary
 
-- **Machine time is small.** Rewriting the newest release of every product (18.9 TB
-  compressed, about 40 TB uncompressed) is roughly **250–1,000 CPU core-hours**. On a
-  fleet of about 25 VMs that is **under a day of wall-clock time**, including
-  validation, for about **$40–100 of compute**.
+- **Machine time is small.** Rewriting the newest release of every product, including
+  the Pacific Islands drafts (18.9 TB compressed, about 40 TB uncompressed), is roughly
+  **250–1,000 CPU core-hours**. On a fleet of about 25 VMs that is **under a day of
+  wall-clock time**, including validation, for about **$40–100 of compute**.
 - **The real cost is people and agreement.** Agreeing a standard with CEFI, writing and
   testing the pipeline, and piloting it is several weeks. Allow **about 3–4 weeks of
   engineering once the standard is agreed**, plus CEFI's own calendar for problems that
   need their model output.
 - **Most problems can be fixed by reprocessing the published files.** A handful can't:
-  empty or broken files, a missing ensemble member, a missing year, and variables
-  regridded to a different longitude grid need CEFI to regenerate from model output.
+  a missing ensemble member, a missing year, and variables regridded to a different
+  longitude grid need CEFI to regenerate from model output (as do the broken files in
+  the Pacific Islands draft products).
 
 ## What a rebuild can and can't fix
 
@@ -28,16 +30,20 @@ newest published files. "CEFI" means the data needed isn't in the bucket.
 
 | Problem | Fix | Who |
 |---|---|---|
-| P1 chunk sizes and shapes (including slow indexing); P2 per-year time chunks; P3 oversized chunks | Rewrite with standard chunks | Reprocess |
-| P4 bundled `volcello`, typo'd `vollcello` | Drop bundled copies; keep one `volcello` (static or its own file) | Reprocess |
-| P5 netCDF3 static files, masked `geolon`/`geolat` | Rewrite as netCDF4; take coordinates from the data files | Reprocess |
-| P9 decadal `lead` as dates; P10 fill values, dimension order, bundled anomalies | Re-encode `lead` as months since init; one fill value; one dimension order | Reprocess |
+| P1 chunk sizes and shapes; P2 per-year time chunks | Rewrite with standard chunks | Reprocess |
+| P3 bundled `volcello`, typo'd `vollcello` | Drop bundled copies; keep one `volcello` (static or its own file) | Reprocess |
+| P4 netCDF3 static files, masked `geolon`/`geolat` | Rewrite as netCDF4; take coordinates from the data files | Reprocess |
+| P7 decadal `lead` as dates; P8 fill values, dimension order, bundled anomalies | Re-encode `lead` as months since init; one fill value; one dimension order | Reprocess |
 | File naming, time units spelling | Normalize metadata and names | Reprocess |
-| P6 NWA regrid variables on the 0.0801° grid | Re-regrid from raw onto the common grid (needs CEFI's regridding weights and method) | CEFI (or reprocess, with their weights) |
-| P7 PCI `T_adx_2d`, `ffedet_btm`, `speed` empty or broken | Regenerate from model output | **CEFI** |
-| P10 member 6 missing from seasonal forecast init 202510 | Regenerate | **CEFI** |
-| P8 `T_adx` SSP585 missing 2045 | Regenerate | **CEFI** |
-| P11 Kerchunk JSONs | Regenerate from rebuilt files, or retire the JSON workflow | CEFI decision |
+| P5 NWA regrid variables on the 0.0801° grid | Re-regrid from raw onto the common grid (needs CEFI's regridding weights and method) | CEFI (or reprocess, with their weights) |
+| P8 member 6 missing from seasonal forecast init 202510 | Regenerate | **CEFI** |
+| P6 `T_adx` SSP585 missing 2045 | Regenerate | **CEFI** |
+| P9 Kerchunk JSONs | Regenerate from rebuilt files, or retire the JSON workflow | CEFI decision |
+
+The Pacific Islands products are still drafts. If the standard is adopted before they
+are finished, they can be written to it directly: small chunks and oversized chunk
+lengths (PCI-1, PCI-3) and bundled `volcello` (PCI-4) are covered by the same rules,
+and the empty or broken files (PCI-2) need regenerating by CEFI in any case.
 
 ## Draft standard (v0, for discussion)
 
@@ -53,7 +59,7 @@ newest published files. "CEFI" means the data needed isn't in the bucket.
 4. **The time chunk divides every file's length exactly**, so files can be concatenated
    and appended on a regular chunk grid (P2). A single full-period file may end in a
    partial chunk only if it will never be extended.
-5. **Chunks never exceed the array length** (P3), and bounds variables (`time_bnds`)
+5. **Chunks never exceed the array length** (PCI-3), and bounds variables (`time_bnds`)
    are chunked like their axis.
 
 ### Proposed chunk shapes
@@ -91,11 +97,11 @@ that serves neither well.
 - **Codec:** zlib level 2 with shuffle, as now. In a timing test, level 4 made files
   only 2% smaller for about 10% more CPU. zstd would need plugins many readers lack.
 - **dtype and fill value:** float32 and one `_FillValue` convention per variable across
-  all files (P10 found NaN in some files, 9.97e36 in others).
+  all files (P8 found NaN in some files, 9.97e36 in others).
 - **Time:** `days since 1993-01-01 00:00:00`, one calendar (`gregorian`/`standard`),
   mid-period stamps, and `time_bnds` present and chunked like `time`.
 - **Coordinates:** one set per region and grid, identical in every file. Unmasked
-  `geolon`/`geolat`. One longitude grid and convention for regrid (P6). One dimension
+  `geolon`/`geolat`. One longitude grid and convention for regrid (P5). One dimension
   naming per grid.
 - **Content:** one data variable per file. No bundled `volcello` or other cell
   measures; those live once, in the static file.
@@ -128,7 +134,9 @@ about an hour for the whole bucket; it parallelizes trivially.
 
 | Scope | Files | Compressed | Main variables uncompressed | Bundled `volcello` (dropped) |
 |---|---:|---:|---:|---:|
-| Newest release of each product (22) | 7,576 | 18.9 TB | 40 TB | 12 TB |
+| NEP and NWA products (18) | 6,783 | 15.3 TB | 36.4 TB | 10.2 TB |
+| Pacific Islands draft products (4) | 793 | 3.5 TB | 3.5 TB | 2.1 TB |
+| **All 22 products** | **7,576** | **18.9 TB** | **39.9 TB** | **12.3 TB** |
 
 The largest single file is 43 GB (PCI monthly raw 4-D). Newest-release volume by series
 is in the audit's `inventory.parquet` and `vars.parquet`. Most of it is NEP daily raw
@@ -192,7 +200,7 @@ than decompressing a local copy.
 | 4. Pilot one series end to end | 1–2 days | NEP monthly regrid r20260701 (437 files, 0.33 TB), then build its Icechunk store and test it with users |
 | 5. Full run on the fleet | about 1 day | Half a day of machine time, plus reruns |
 | 6. Build Icechunk stores from rebuilt files | 1–2 days | One group per series becomes possible |
-| 7. CEFI regenerates what reprocessing can't fix | CEFI's calendar | P6 (unless weights shared), P7, P8, P10 missing member |
+| 7. CEFI regenerates what reprocessing can't fix | CEFI's calendar | P5 (unless weights shared), P6, P8 missing member; PCI-2 when the PCI products are finished |
 
 **Total: about 3–4 weeks of engineering after the standard is agreed.** Machine time
 is not the bottleneck.

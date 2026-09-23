@@ -8,7 +8,7 @@
     The decadal numbers differ between inits (they follow the calendar), and decoded
     they become different absolute dates for every init
 
-    python audit/repro/08_forecast_coordinates.py
+    python audit/repro/07_forecast_coordinates.py
 """
 
 import collections

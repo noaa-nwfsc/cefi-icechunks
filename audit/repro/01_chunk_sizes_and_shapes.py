@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Repro: chunking has no standard, and chunk sizes are poorly suited to cloud reads.
+"""Repro: chunking has no standard, and chunk sizes are poorly suited to cloud reads
+(report P1; the Pacific Islands draft rows are PCI-1).
 
 For one example file per case, prints the main variable's chunk shape, its
 uncompressed size, and the compressed size of its chunks, as fetched per read.
@@ -18,14 +19,15 @@ import s3fs
 fs = s3fs.S3FileSystem(anon=True)
 B = "noaa-oar-cefi-regional-mom6-pds"
 CASES = {
-    "PCI monthly raw 2-D": "pacific_islands/full_domain/hindcast/monthly/raw/r20260427/Heat_PmE.pci.full.hcast.monthly.raw.r20260427.199301-202512",
-    "PCI monthly raw 4-D": "pacific_islands/full_domain/hindcast/monthly/raw/r20260427/rsdo.pci.full.hcast.monthly.raw.r20260427.199301-202512",
-    "PCI daily raw 2-D": "pacific_islands/full_domain/hindcast/daily/raw/r20260427/btm_o2.pci.full.hcast.daily.raw.r20260427.199301-202512",
-    "PCI monthly regrid 2-D": "pacific_islands/full_domain/hindcast/monthly/regrid/r20260427/Heat_PmE.pci.full.hcast.monthly.regrid.r20260427.199301-202512",
     "NEP monthly raw 2-D": "northeast_pacific/full_domain/hindcast/monthly/raw/r20260701/tos.nep.full.hcast.monthly.raw.r20260701.199301-202512",
     "NEP monthly raw 3-D": "northeast_pacific/full_domain/hindcast/monthly/raw/r20260701/thetao.nep.full.hcast.monthly.raw.r20260701.199301-202512",
     "NEP daily raw 2-D": "northeast_pacific/full_domain/hindcast/daily/raw/r20260701/tos.nep.full.hcast.daily.raw.r20260701.199301-202512",
     "NWA monthly regrid 3-D": "northwest_atlantic/full_domain/hindcast/monthly/regrid/r20250715/thetao.nwa.full.hcast.monthly.regrid.r20250715.199301-202312",
+    # Pacific Islands products are still drafts (report section PCI-1)
+    "PCI monthly raw 2-D": "pacific_islands/full_domain/hindcast/monthly/raw/r20260427/Heat_PmE.pci.full.hcast.monthly.raw.r20260427.199301-202512",
+    "PCI monthly raw 4-D": "pacific_islands/full_domain/hindcast/monthly/raw/r20260427/rsdo.pci.full.hcast.monthly.raw.r20260427.199301-202512",
+    "PCI daily raw 2-D": "pacific_islands/full_domain/hindcast/daily/raw/r20260427/btm_o2.pci.full.hcast.daily.raw.r20260427.199301-202512",
+    "PCI monthly regrid 2-D": "pacific_islands/full_domain/hindcast/monthly/regrid/r20260427/Heat_PmE.pci.full.hcast.monthly.regrid.r20260427.199301-202512",
 }
 
 print(f"{'case':24s} {'chunk shape':22s} {'uncompressed':>12s} {'compressed median (10-90%)':>30s} {'chunks':>8s}")
