@@ -26,11 +26,13 @@ estimate of the rebuild effort are in [`rebuild.md`](rebuild.md).
   use 19 different chunk shapes. 406 files use netCDF-C's automatic ~4 MiB chunking,
   meaning no chunking was chosen. The 3-D variables use 160 MB chunks (P1).
 - **What else blocks one group per product:**
-  - Per-year daily files use a 100-step time chunk that doesn't divide 365/366, so they
-    can't be joined on a regular chunk grid. **Earthmover's production daily store leaves
-    every per-year variable out for this reason** (the daily 3-D ocean state and
-    biogeochemistry). Appending them one year at a time instead runs without error but
-    misplaces the data (P2).
+  - The daily **4-D (depth-resolved) variables** (`dissic`, `thetao`, `so`, `no3`, ...)
+    are the only daily variables stored as one file per year. Their 100-step time chunk
+    doesn't divide 365/366, so the years can't be joined on a regular chunk grid.
+    **Earthmover's production daily store leaves every one of them out for this
+    reason.** Appending them one year at a time instead runs without error but misplaces
+    the data (P2; affected files listed in
+    [Appendix: files affected by P2](#appendix-files-affected-by-p2)).
   - A full 4-D `volcello` is bundled inside other variables' raw files, and NEP daily
     also carries a typo'd `vollcello` series (P3).
   - The static files are netCDF3 and have land-masked coordinates (P4).
@@ -113,16 +115,25 @@ NetCDF chunking dictates. Only rewriting the files can change it.
   every file has ragged edge chunks.
 - **Repro:** `01_chunk_sizes_and_shapes.py`.
 
-### P2. Per-year daily files: time chunk doesn't divide the file length
-- **Which daily variables are affected.** NEP daily variables come in two layouts, and
-  only one of them is a problem:
-  - **Single full-period file** (16 variables in raw and in regrid: `tos`, `tob`, `ssh`,
-    `btm_o2`, `chlos`, `phycos`, ...): one NetCDF covers 1993–2025, so the whole series
-    is one virtual array and nothing has to be joined. These are fine.
-  - **One file per year** (the 3-D variables: `dissic`, `no3`, `o2`, `po4`, `si`, `so`,
-    `talk`, `thetao`, `uo`, `vo`, `volcello`, `vollcello` in raw; the same without `uo`
-    and `vo` in regrid): the 33 yearly files have to be joined along time to make one
-    series. That is where it breaks.
+### P2. Daily 4-D variables (one file per year): time chunk doesn't divide the year
+- **Which daily variables are affected.** Not every daily file is per-year. The NEP
+  daily products use two layouts, and which one a variable gets follows its
+  dimensions:
+  - **2-D variables, `(time, y, x)`: one file for the whole period.** These are surface
+    or bottom fields, 16 in raw and in regrid: `tos`, `tob`, `ssh`, `btm_o2`, `chlos`,
+    `phycos`, `pco2surf`, ... One NetCDF covers 1993–2025, so the whole series is one
+    virtual array and nothing has to be joined. These are fine.
+  - **4-D variables, `(time, z_l, y, x)`: one file per year.** These are depth-resolved
+    fields on 52 levels:
+    - raw: `dissic`, `no3`, `o2`, `po4`, `si`, `so`, `talk`, `thetao`, `uo`, `vo`,
+      `volcello`, `vollcello`
+    - regrid: the same without `uo` and `vo`
+
+    Each variable has 33 yearly files (1993 to 2025) that must be joined along time to
+    make one series. That is where it breaks. In the newest releases, every daily 4-D
+    variable is per-year and every per-year variable is 4-D.
+  - The affected files (726) are listed in
+    [Appendix: files affected by P2](#appendix-files-affected-by-p2).
 - **Evidence:** the per-year files use a time chunk of 100, while each file holds 365 or
   366 days, so every year ends in a partial chunk of 65 or 66 days. HDF5 stores that last
   chunk at full size, padded with the fill value.
@@ -375,3 +386,34 @@ stopped.
   (268 NEP/NWA files and 75 PCI files), not every file. The header checks covered every
   file.
 - **Raw vs regrid consistency** (same variables and time axes in both) was not checked.
+
+## Appendix: files affected by P2
+
+These are the per-year daily 4-D files in the newest NEP daily releases: 726 NetCDFs,
+33 per variable (`YYYY01-YYYY12`, 1993–2025).
+
+| Directory | Variables | Files |
+|---|---|---:|
+| `northeast_pacific/full_domain/hindcast/daily/raw/r20260701/` | `dissic`, `no3`, `o2`, `po4`, `si`, `so`, `talk`, `thetao`, `uo`, `vo`, `volcello`, `vollcello` | 396 |
+| `northeast_pacific/full_domain/hindcast/daily/regrid/r20260701/` | `dissic`, `no3`, `o2`, `po4`, `si`, `so`, `talk`, `thetao`, `volcello`, `vollcello` | 330 |
+
+Filename pattern (POSIX extended regular expression, no backreferences, so it works with
+GNU grep, ugrep and Python's `re`):
+
+```text
+^(dissic|no3|o2|po4|si|so|talk|thetao|uo|vo|volcello|vollcello)\.nep\.full\.hcast\.daily\.(raw|regrid)\.r20260701\.[0-9]{6}-[0-9]{6}\.nc$
+```
+
+To list them (anonymous access; `awk` keeps only the file name from `aws s3 ls`):
+
+```bash
+P='^(dissic|no3|o2|po4|si|so|talk|thetao|uo|vo|volcello|vollcello)\.nep\.full\.hcast\.daily\.(raw|regrid)\.r20260701\.[0-9]{6}-[0-9]{6}\.nc$'
+for grid in raw regrid; do
+  aws s3 ls --no-sign-request \
+    s3://noaa-oar-cefi-regional-mom6-pds/northeast_pacific/full_domain/hindcast/daily/$grid/r20260701/ \
+    | awk '{print $4}' | grep -E "$P"
+done
+```
+
+This lists 396 raw and 330 regrid files. The pattern matches none of the full-period
+2-D files (`...199301-202512.nc`), the static files, or the Kerchunk JSONs.
