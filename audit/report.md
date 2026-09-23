@@ -27,7 +27,10 @@ estimate of the rebuild effort are in [`rebuild.md`](rebuild.md).
   meaning no chunking was chosen. The 3-D variables use 160 MB chunks (P1).
 - **What else blocks one group per product:**
   - Per-year daily files use a 100-step time chunk that doesn't divide 365/366, so they
-    can't be concatenated on a regular chunk grid (P2).
+    can't be joined on a regular chunk grid. **Earthmover's production daily store leaves
+    every per-year variable out for this reason** (the daily 3-D ocean state and
+    biogeochemistry). Appending them one year at a time instead runs without error but
+    misplaces the data (P2).
   - A full 4-D `volcello` is bundled inside other variables' raw files, and NEP daily
     also carries a typo'd `vollcello` series (P3).
   - The static files are netCDF3 and have land-masked coordinates (P4).
@@ -111,18 +114,57 @@ NetCDF chunking dictates. Only rewriting the files can change it.
 - **Repro:** `01_chunk_sizes_and_shapes.py`.
 
 ### P2. Per-year daily files: time chunk doesn't divide the file length
-- **Where:** NEP daily raw and regrid (r20260701): the 3-D variables stored one file per
-  year (`dissic`, `no3`, `o2`, `po4`, `si`, `so`, `talk`, `thetao`, `uo`, `vo`,
-  `volcello`, `vollcello`). 22 variable series.
-- **Evidence:** the time chunk is 100 while files hold 365 or 366 steps, so every year
-  ends in a partial chunk (65 or 66 steps).
-- **Why it matters:** VirtualiZarr refuses to concatenate them: *"Cannot concatenate
+- **Which daily variables are affected.** NEP daily variables come in two layouts, and
+  only one of them is a problem:
+  - **Single full-period file** (16 variables in raw and in regrid: `tos`, `tob`, `ssh`,
+    `btm_o2`, `chlos`, `phycos`, ...): one NetCDF covers 1993–2025, so the whole series
+    is one virtual array and nothing has to be joined. These are fine.
+  - **One file per year** (the 3-D variables: `dissic`, `no3`, `o2`, `po4`, `si`, `so`,
+    `talk`, `thetao`, `uo`, `vo`, `volcello`, `vollcello` in raw; the same without `uo`
+    and `vo` in regrid): the 33 yearly files have to be joined along time to make one
+    series. That is where it breaks.
+- **Evidence:** the per-year files use a time chunk of 100, while each file holds 365 or
+  366 days, so every year ends in a partial chunk of 65 or 66 days. HDF5 stores that last
+  chunk at full size, padded with the fill value.
+- **Why it matters:** a Zarr array has one regular chunk grid, so every chunk except the
+  last must be exactly 100 days long. A year's partial last chunk can't sit in the
+  middle of the series. The files can't be joined into one virtual array without either
+  variable-length chunks or rewriting the files.
+- **What the professional build did: left the variables out.** Earthmover's daily store
+  (Arraylake `NOAA-PMEL/cefi-nep-hindcast-daily`, groups `raw/main` and `regrid/main`),
+  the intended production version and built from r20250912, contains only the 14
+  full-period 2-D variables.
+  Every per-year variable (`dissic`, `thetao`, `so`, `no3`, `o2`, ...) is missing. Their
+  builder skipped those variables because concatenating the yearly files failed
+  (earthmover-support/cefi#3), and they were considering variable-length chunks as a way
+  around it.
+  - What the store does contain is correct: `tos` matched the source NetCDF at six time
+    points in both groups.
+  - The fact that the production build had to drop the daily 3-D ocean state and
+    biogeochemistry is the clearest evidence that P2 blocks real use of the data.
+- **Concatenation refuses.** VirtualiZarr's `xr.concat` stops with *"Cannot concatenate
   arrays with partial chunks because only regular chunk grids are currently supported.
   Concat input 0 has array length 365 ... not evenly divisible by chunk length 100."*
-  That's why the daily 3-D variables can't join the daily 2-D variables, which are single
-  full-period files. (Different chunk shapes between variables are fine within one
-  group; each array has its own chunks.)
-- **Repro:** `02_per_year_time_chunks.py`.
+- **Appending one year at a time is worse: it runs, but misplaces the data.** Writing
+  the first year and then adding each later year with VirtualiZarr's
+  `vz.to_icechunk(..., append_dim="time")` gives no error, because the append doesn't
+  check chunk alignment the way concatenation does.
+  - **Where each year lands:** each appended year is written starting at chunk slot
+    `floor(days written so far ÷ 100)`, not at its own position. With two years of
+    r20260701 files, 1994's first chunk lands at index 300, which the (correct) time
+    coordinate labels 1993-10-28. It overwrites the last 65 days of 1993.
+  - **After it:** all of 1994 then sits 65 days early, and the last 65 time steps are
+    empty.
+  - **Over a full 1993–2024 series** the offsets would vary from year to year:
+    - every year after 1993 labelled 0–96 days early
+    - 11 year boundaries overwriting about 717 days of data in total
+    - 20 boundaries exposing about 695 rows of HDF5's padded edge chunks under ordinary
+      dates
+  - **How it shows up:** only as an "inconsistent chunks" error from `ds.chunks`. The
+    dataset otherwise opens and reads without complaint.
+- **Repro:** `02a_per_year_time_chunks.py` (concatenation refused) and
+  `02b_append_misplaces_data.py` (a two-year append into a throwaway store, compared with
+  the source files).
 
 ### P3. Bundled `volcello`, and a typo'd `vollcello` series
 - **Bundled copies:** a full 4-D `volcello` is stored inside the files of other 3-D
@@ -300,6 +342,7 @@ variables.
 | Flatten to tables | `tables.py` | `files/vars/axes.parquet` (not committed) |
 | Parse a sample with VirtualiZarr (one file per distinct variable signature, up to 20 per release; 343 files in the newest releases, 75 of them PCI) and compare each manifest with its Kerchunk JSON | `smoke_virtualizarr.py` | `smoke.jsonl` (not committed) |
 | Read data at duplicated time stamps (none in the newest releases) | `dup_values.py` | – |
+| Check Earthmover's daily store, and a throwaway appended store, against the source NetCDFs at single grid points (P2) | `repro/02b_append_misplaces_data.py` (append); manual check (Earthmover) | – |
 | Run all checks | `checks.py` | `findings.csv`, `time_axes.csv` (PCI included; filter on `group`) |
 
 To rerun, from the repo root:

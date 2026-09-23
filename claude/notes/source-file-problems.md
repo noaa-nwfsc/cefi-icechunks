@@ -48,6 +48,26 @@ Keep that framing in anything written for CEFI.
   1 MB source chunks over the network ran at 8 MB/s, against about 250 MB/s for local
   decompression.
 
+## The Source Coop daily stores are misplaced (internal; not in the report)
+
+The user's Source Coop store `eeholmes/cefi/nepacific-icechunk`, built by this repo's
+daily notebooks and `build_nep_icechunk_daily.py` from r20250912, appended the per-year
+files with `append_dim="time"`. **All variables in `daily/raw/main` (14) and
+`daily/regrid/main` (12) are misplaced.**
+- Each year lands at chunk slot `floor(days so far / chunk)`: 1994 starts at index 300
+  (labelled 1993-10-28).
+- `chlos` and `phycos` have chunk 37, so 1994 starts at index 333.
+- The `daily/*/aux` groups and all monthly groups spot-checked correct.
+
+Earthmover's Arraylake store `NOAA-PMEL/cefi-nep-hindcast-daily` simply omits the
+per-year variables and is correct where checked.
+
+The user asked that the report not mention Source Coop: Earthmover is the (eventual)
+production version, and its dropping those variables is the point to make. The report's
+repro `02b_append_misplaces_data.py` demonstrates the append bug in a throwaway
+in-memory store using r20260701. Fixing or flagging the Source Coop store is the user's
+call and hasn't been done.
+
 ## Things that look wrong but aren't, or that are easy to get wrong
 
 - **Chunk shapes that differ between variables are not a merge blocker**; each Zarr

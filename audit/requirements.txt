@@ -12,3 +12,5 @@ scipy            # reads the netCDF3 static files
 virtualizarr[hdf]
 obstore
 obspec-utils     # ObjectStoreRegistry, imported directly by the repro scripts
+icechunk         # 02b_appended_store_misplacement.py reads the published store
+zarr
