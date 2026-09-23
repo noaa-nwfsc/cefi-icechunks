@@ -23,6 +23,21 @@ later session needs and could not easily reconstruct.
   The failures are around them: empty, misnamed, pointing into other directories, and
   25 static JSONs pointing at *another region's* static file.
 
+## Chunking and the rebuild
+
+- There is no chunking standard: 39 chunk shapes among the main variables, and 1,687
+  files use netCDF-C's default ~4 MiB chunking (P17 in the report). Chunks run from
+  about 1 MB (PCI raw, many only KB compressed) to 160 MB (NEP/NWA 3-D).
+- The user intends to argue that CEFI rebuild every NetCDF to one standard.
+  `audit/rebuild.md` has a draft standard (v0, open questions listed) and the effort:
+  about 250–1,000 core-hours and half a day on ~25 VMs for the newest releases, and
+  about 3–4 weeks of engineering once the standard is agreed. A few problems need CEFI
+  to regenerate from model output (PCI empty files, missing member 6, `T_adx` SSP585
+  2045, NWA 0.0801° regrid).
+- Rebuild pipelines must copy whole files locally before rechunking: reading through
+  1 MB source chunks over the network ran at 8 MB/s, against about 250 MB/s for local
+  decompression.
+
 ## Things that look wrong but aren't, or that are easy to get wrong
 
 - **Chunk shapes that differ between variables are not a merge blocker**; each Zarr

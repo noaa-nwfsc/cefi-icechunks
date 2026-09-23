@@ -109,8 +109,8 @@ that serves neither well.
 
 The audit already encodes most of the standard. Run `audit/scan_headers.py`,
 `tables.py` and `checks.py` on the rebuilt files; a release passes when `findings.csv`
-has no `single-group`, `concat`, `chunking` or `file` rows. That takes about 45 minutes
-on a small hub for the whole bucket, and parallelizes trivially.
+has no `single-group`, `concat`, `chunking` or `file` rows. On a 4-CPU hub it took
+about an hour for the whole bucket; it parallelizes trivially.
 
 ### Open questions for CEFI
 
@@ -152,7 +152,8 @@ Measured on this JupyterHub, one core, using the audit's clean environment
 
 Both rewrites were lossless, with output about the same size as the source. The last
 row shows **the pipeline must copy each whole file to local disk first** and rechunk
-locally. Reading through small source chunks over the network is 30× slower.
+locally. Reading through small source chunks over the network is about 30× slower
+than decompressing a local copy.
 
 ### Estimate
 
@@ -183,7 +184,7 @@ locally. Reading through small source chunks over the network is 30× slower.
   storage.
 - **After the rebuild, the Icechunk build gets much faster.** Standard chunks mean far
   fewer chunk references: the PCI 4-D files that took VirtualiZarr 4–8 minutes each have
-  about 80,000 chunks now and would have a few hundred.
+  40,000–90,000 chunks now and would have about 1,600 per variable.
 
 ### People-time and sequence
 
