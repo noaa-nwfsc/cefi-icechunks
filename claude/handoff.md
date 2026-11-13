@@ -39,6 +39,7 @@ Orientation for a new session. Not a task list.
   misplaced data. They were built by appending per-year files with
   `append_dim="time"`, where the 100-day source chunk doesn't divide 365. The issue asks
   for a README warning and a decision on the groups; not started.
-- **Next task (in `~/agent-skills`, not here):** nmfs-opensci/agent-skills issue #21,
-  which takes the append pitfall into the `virtual-icechunk` skill.
+- **Next task (in `~/ocean-icechunks-skills`, not here):** ocean-icechunks/ocean-icechunks-skills
+  issue #3 (formerly nmfs-opensci/agent-skills#21; the skill moved on 2026-11-13), which
+  takes the append pitfall into the `virtual-icechunk` skill.
 - Issue #5 is still open; PR #7 deliberately didn't close it.
